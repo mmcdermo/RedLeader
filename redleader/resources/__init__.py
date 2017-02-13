@@ -1,4 +1,5 @@
 from .resource import *
+from .dynamodb import *
 from .s3 import *
 from .sqs import *
 from .ec2 import *

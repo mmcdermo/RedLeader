@@ -1,5 +1,6 @@
 import json
 import time
+import boto3
 
 import botocore.exceptions
 
@@ -124,3 +125,43 @@ class OfflineContext(object):
 
     def get_client(self):
         raise OfflineContextError(action="get_client")    
+
+class AWSContext(object):
+    """
+    Context manager for RedLeader, managing AWS sessions and clients.
+    """
+
+    def __init__(self,
+                 aws_profile=None,
+                 aws_access_key_id=None,
+                 aws_secret_access_key=None,
+                 aws_region="us-west-1"):
+        self._aws_profile = aws_profile
+        self._aws_access_key_id = aws_access_key_id
+        self._aws_secret_access_key = aws_secret_access_key
+        self._aws_region = aws_region
+        self._clients = {}
+        self._account_id = None
+
+        try:
+            self._session = boto3.Session(profile_name=self._aws_profile,
+                                          region_name=self._aws_region)
+        except botocore.exceptions.NoCredentialsError:
+            self._session = boto3.Session(region_name=self._aws_region)
+
+    def get_session(self):
+        return self._session
+
+    def get_region(self):
+        return self._aws_region
+
+    def get_account_id(self):
+        if self._account_id is None:
+            self._account_id = self.get_client('sts').get_caller_identity().get('Account')
+        return self._account_id
+    
+    def get_client(self, client_type):
+        if client_type not in self._clients:
+            self._clients[client_type] = self._session.client(client_type)
+        return self._clients[client_type]        
+    

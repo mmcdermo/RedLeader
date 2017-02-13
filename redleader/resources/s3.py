@@ -7,15 +7,10 @@ class S3BucketResource(Resource):
     def __init__(self,
                  context,
                  bucket_name,
-                 reuse_if_exists=False,
                  cf_params={}
-                 
     ):
         super().__init__(context, cf_params)
-
-        # TODO: Generate random bucket name suffix if reuse_if_exists=False
         self._bucket_name = bucket_name
-        self._reuse_if_exists = reuse_if_exists
 
     def is_static(self):
         return True
@@ -31,8 +26,6 @@ class S3BucketResource(Resource):
         """
         Get the cloud formation template for this resource
         """
-        if(self.find_deployed_resources and self._reuse_if_exists):
-            return "empty" # TODO: empty template
         return {
             "Type" : "AWS::S3::Bucket",
             "Properties" : {

@@ -1,0 +1,8 @@
+{
+    "Sid": "RedLeaderDynamoDBAllowAll",
+    "Effect": "Allow",
+    "Action": [
+	"dynamodb:*"
+    ],
+    "Resource": "arn:aws:dynamodb:{aws_region}:{account_id}:table/{table_name}"
+}

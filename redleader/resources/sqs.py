@@ -7,15 +7,10 @@ class SQSQueueResource(Resource):
     def __init__(self,
                  context,
                  queue_name,
-                 reuse_if_exists=False,
                  cf_params={}
-                 
     ):
         super().__init__(context, cf_params)
-
-        # TODO: Generate random bucket name suffix if reuse_if_exists=False
         self._queue_name = queue_name
-        self._reuse_if_exists = reuse_if_exists
 
     def is_static(self):
         return True

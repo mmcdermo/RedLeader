@@ -150,7 +150,8 @@ def create_iam_policy(context, service):
         policy = policy.replace("{%s}" % param, service['params'][param])
         
     builtin_params = {
-        "account_id": context.get_account_id()
+        "account_id": context.get_account_id(),
+        "aws_region": context.get_region()
     }
     for param in builtin_params:
         policy = policy.replace("{%s}" % param, builtin_params[param])

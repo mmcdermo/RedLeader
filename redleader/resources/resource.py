@@ -159,6 +159,9 @@ class Resource(object):
             return None
 
         cf_template = self._cloud_formation_template()
+        if cf_template is None:
+            return None
+
         for param in self._cf_params:
             cf_template['Properties'][param] = self._cf_params[param]
 
