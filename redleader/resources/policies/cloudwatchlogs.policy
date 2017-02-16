@@ -1,0 +1,12 @@
+[
+    {
+	"Action": [
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+	    "logs:CreateLogGroup",
+	    "logs:DescribeLogStreams"
+	],
+	"Effect": "Allow",
+	"Resource": "*"
+    }
+]
