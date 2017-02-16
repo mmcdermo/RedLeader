@@ -1,10 +1,7 @@
-{
-  "Version": "2012-10-17",
-  "Statement": [
+[
     {
       "Effect": "Allow",
-      "Action": ["sqs:SendMessage","sqs:ReceiveMessage"],
+      "Action": "*",
       "Resource": "arn:aws:sqs:*:{account_id}:{queue_name}*"
     }
-  ]
-}
+]

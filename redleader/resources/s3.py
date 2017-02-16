@@ -1,4 +1,5 @@
-from redleader.resources import Resource 
+from redleader.resources import Resource
+import redleader.exceptions as exceptions
 
 class S3BucketResource(Resource):
     """
@@ -35,7 +36,10 @@ class S3BucketResource(Resource):
         }
 
     def resource_exists(self):
-        client = self._context.get_client('s3')
+        try:
+            client = self._context.get_client('s3')
+        except exceptions.OfflineContextError:
+            return False
         try:
             client.head_bucket(Bucket=self._bucket_name)
             print("Bucket %s exists" % self._bucket_name)

@@ -1,4 +1,5 @@
-from redleader.resources import Resource 
+from redleader.resources import Resource
+import redleader.exceptions as exceptions
 
 class SQSQueueResource(Resource):
     """
@@ -19,8 +20,9 @@ class SQSQueueResource(Resource):
         return "s3Queue%s" % self._queue_name.replace("-", "").replace("_", "")
 
     def _iam_service_policy(self):
-        return {"name": "s3",
+        return {"name": "sqs",
                 "params": {"queue_name": self._queue_name}}
+
 
     def _cloud_formation_template(self):
         """
@@ -40,6 +42,11 @@ class SQSQueueResource(Resource):
         }
 
     def resource_exists(self):
+        try:
+            client = self._context.get_client('s3')
+        except exceptions.OfflineContextError:
+            return False
+
         client = self._context.get_client('sqs')
         queues = client.list_queues(QueueNamePrefix=self._queue_name)
         if 'QueueUrls' in queues and len(queues['QueueUrls']) > 0:

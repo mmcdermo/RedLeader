@@ -4,13 +4,14 @@ import json
 
 class Resource(object):
     def __init__(self, context, cf_params):
-        super()        
+        super()
         self._context = context
         self._dependencies = []
         self._cf_params = cf_params
         self._user_id = None
         self._multiplicity_uid = None
         self._generated_id = None
+        self._generated_resources = None
 
     def get_dependencies(self):
         return self._dependencies
@@ -69,9 +70,6 @@ class Resource(object):
         extracted = {}
         for k in key_params:
             extracted[k] = template['Properties'][k]
-            if isinstance(extracted[k], map):
-                print("Found map. Unmapifying")
-                extracted[k] = list(extracted[k])
 
         h = hashlib.md5()
         extracted_json = json.dumps(extracted, sort_keys=True)
@@ -88,6 +86,10 @@ class Resource(object):
             cls._multiplicity_count[uid] = 1
         return cls._multiplicity_count[uid]
 
+    @classmethod
+    def reset_multiplicity(cls):
+        cls._multiplicity_count = {}
+
     def _idempotent_params(self):
         """
         Returns the list of cloud formation parameters that must be the same
@@ -96,11 +98,11 @@ class Resource(object):
         By default we assume that all parameters must be the same.
 
         Example: we might change an EC2 instance's security group, but want the
-        RedLeader resource to refer to the same deployed server. 
+        RedLeader resource to refer to the same deployed server.
         """
-        
+
         template = self._cloud_formation_template()
-        return template['Properties'].keys()
+        return sorted(template['Properties'].keys())
 
     def iam_service_policies(self):
         """
@@ -117,6 +119,11 @@ class Resource(object):
         raise NotImplementedError
 
     def generate_sub_resources(self):
+        if self._generated_resources is None:
+            self._generated_resources = self._generate_sub_resources()
+        return self._generated_resources
+
+    def _generate_sub_resources(self):
         """
         Generate any sub resources, if necessary
         """
@@ -191,9 +198,9 @@ class CustomUserResource(Resource):
     resources that aren't yet implemented programatically
     """
     def __init__(self, context, template):
-        super(self, context)        
+        super(self, context)
         self._template = template
-    
+
     def cloud_formation_template(self):
         """
         Get the cloud formation template for this resource

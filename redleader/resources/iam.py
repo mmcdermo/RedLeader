@@ -19,7 +19,7 @@ class IAMInstanceProfileResource(Resource):
         self._generated_role = None
         self._roles = roles
         self._services = services
-        
+
         for permission in self._permissions:
             self.add_dependency(permission.resource)
 
@@ -27,15 +27,14 @@ class IAMInstanceProfileResource(Resource):
             for role in self._roles:
                 self.add_dependency(role)
 
-    def generate_sub_resources(self):
-        if len(self._roles) > 0:
-            return []
-        if self._generated_role is None:
-            self._generated_role = IAMRoleResource(self._context,
-                                                   self._permissions,
-                                                   services=self._services)
-            self._roles.append(self._generated_role)
-            self.add_dependency(self._generated_role)
+    def _generate_sub_resources(self):
+        self._generated_role = IAMRoleResource(self._context,
+                                               self._permissions,
+                                               services=self._services,
+                                               policies=[]
+        )
+        self._roles.append(self._generated_role)
+        self.add_dependency(self._generated_role)
         return [self._generated_role]
 
     def _cloud_formation_template(self):
@@ -45,7 +44,7 @@ class IAMInstanceProfileResource(Resource):
                 "Path": "/redleader/",
                 "Roles": [Resource.cf_ref(x) for x in self._roles]
             }
-        } 
+        }
 
 class IAMRoleResource(Resource):
     """
@@ -81,7 +80,7 @@ class IAMRoleResource(Resource):
                 }
             ]
         }
-            
+
     def _cloud_formation_template(self):
         return {
             "Type": "AWS::IAM::Role",
@@ -96,15 +95,16 @@ class IAMRoleResource(Resource):
         }
         return "IAM Role template"
 
-    def generate_sub_resources(self):
+    def _generate_sub_resources(self):
         """
         Generate a single sub-policy representing access to provided resources
         """
         if len(self._permissions) == 0:
             return []
-        if self._generated_policy is None:
-            self._generated_policy = IAMPolicyResource(self._context, self._permissions)
-            self._policies.append(self._generated_policy)
+
+        self._generated_policy = IAMPolicyResource(self._context, self._permissions)
+        self.add_dependency(self._generated_policy)
+        self._policies.append(self._generated_policy)
         return [self._generated_policy]
 
 class IAMPolicyResource(Resource):
@@ -119,7 +119,7 @@ class IAMPolicyResource(Resource):
                 "Description" : self._id_placeholder(),
                 "Path": "/redleader/",
                 "PolicyDocument": generate_policy_document(
-                        self._context, self._permissions)
+                    self._context, self._permissions)
             }
         }
         return "IAM Policy template"
@@ -136,7 +136,7 @@ def generate_policy_document(context, permissions):
         "Version" : "2012-10-17",
         "Statement": policy_statements
     }
-    
+
 def load_policy_file(name):
     resource_package = __name__
     resource_path = '/'.join(('policies', '%s.policy' % name))
@@ -145,10 +145,10 @@ def load_policy_file(name):
 def create_iam_policy(context, service):
     template = load_policy_file(service['name'])
     policy = template
-    
+
     for param in service['params']:
         policy = policy.replace("{%s}" % param, service['params'][param])
-        
+
     builtin_params = {
         "account_id": context.get_account_id(),
         "aws_region": context.get_region()

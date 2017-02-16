@@ -33,9 +33,9 @@ class TestCodeDeploy(unittest.TestCase):
                         Bucket=bucket['Name'],
                         Delete={'Objects': [{"Key": x["Key"]} for x in objs]})
                 client.delete_bucket(Bucket=bucket['Name'])
-    
+
     def test_code_deploy_cluster(self):
-        context = self._context 
+        context = self._context
 
         # Configure our cluster
         cluster = Cluster("testClusterClass", context)
@@ -56,7 +56,7 @@ class TestCodeDeploy(unittest.TestCase):
         cluster.add_resource(sqsQueue)
         cluster.add_resource(s3Bucket)
         cluster.add_resource(ec2Instance)
-        cluster.add_resource(deploymentGroup)        
+        cluster.add_resource(deploymentGroup)
 
         template = cluster.cloud_formation_template()
 
@@ -95,6 +95,9 @@ class TestCodeDeploy(unittest.TestCase):
         queue_url = queues['QueueUrls'][0]
 
         messages = sqsClient.receive_message(QueueUrl=queue_url)
+        if 'Messages' not in messages:
+            print(messages)
+            self.assertEqual(0, "No messages key in response")
         for message in messages['Messages']:
             print(message)
             print(sqsClient.delete_message(
@@ -103,6 +106,6 @@ class TestCodeDeploy(unittest.TestCase):
                 ))
         self.assertEqual(len(messages['Messages']), 1)
         self.assertEqual(messages['Messages'][0]['Body'], 'message_from_ec2_server')
-        
+
         # Delete cluster
         cluster.blocking_delete(verbose=True)

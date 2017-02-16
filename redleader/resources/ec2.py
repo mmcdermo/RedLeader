@@ -2,13 +2,14 @@ from redleader.resources import Resource
 from .iam import IAMInstanceProfileResource
 import random
 import botocore.exceptions
+import redleader.exceptions as exceptions
 
 class EC2InstanceResource(Resource):
     """
     Creates an EC2 server resource.
 
     permissions (optional):
-    If a list of permissions is provided, then an instance profile 
+    If a list of permissions is provided, then an instance profile
     will be created with appropriate permissions.
 
     security_key_name (optional):
@@ -33,26 +34,29 @@ class EC2InstanceResource(Resource):
         "region_name": "us-west-1",
         "init_script": "",
         "tags": [],
-        "cf_params": {}        
+        "cf_params": {}
     }
     def __init__(self, context, **kwargs):
         for key, value in self.DEFAULTS.items():
             if key in kwargs:
                 setattr(self, "_" + key, kwargs[key])
             else:
-                setattr(self, "_" + key, value)                
-        
+                setattr(self, "_" + key, value)
+
         super().__init__(context, self._cf_params)
         self._generated_profile = None
-        
+
         for permission in self._permissions:
             self.add_dependency(permission.resource)
-            
+
         if self._security_group is not None:
             self.add_dependency(self._security_group)
-            
+
         if self._security_key_name is None:
-            ec2 = self._context.get_client('ec2')
+            try:
+                ec2 = self._context.get_client('ec2')
+            except exceptions.OfflineContextError:
+                return
             try:
                 response = ec2.create_key_pair(KeyName='redleader_keypair')
                 with open("./redleader_keypair.pem", "w") as f:
@@ -78,14 +82,14 @@ class EC2InstanceResource(Resource):
             generated.append(self._security_group)
             self.add_dependency(self._security_group)
 
-        if self._instance_profile is not None:            
+        if self._instance_profile is not None:
             if self._generated_profile is None:
                 self._generated_profile = IAMInstanceProfileResource(
-                    self._context, self._permissions)
-                self.add_dependency(self._generated_profile)                
+                    self._context, self._permissions, roles=[])
+                self.add_dependency(self._generated_profile)
             generated.append(self._generated_profile)
 
-        return [self._security_group, self._generated_profile]
+        return generated
 
     def _cloud_formation_block_device_mappings(self):
         return [{

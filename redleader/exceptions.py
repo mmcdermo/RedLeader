@@ -38,6 +38,7 @@ class MissingDependencyError(RedLeaderError):
     message = 'Resource {source_resource} missing dependency {missing_resource}. Ensure {source_resource} has been added to the cluster.'
 
 class OfflineContextError(RedLeaderError):
-    message = 'OfflineContext cannot perform action {action}'
-    
+    message = 'Attempting to use offline context like an online context.'
 
+class OfflineContextError(RedLeaderError):
+    message = 'OfflineContext cannot perform action {action}'

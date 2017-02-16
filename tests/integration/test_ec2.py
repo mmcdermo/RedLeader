@@ -6,7 +6,7 @@ import time
 import botocore.exceptions
 
 from redleader.cluster import Cluster, OfflineContext, AWSContext
-from redleader.resources import S3BucketResource, EC2InstanceResource, ReadWritePermission
+from redleader.resources import S3BucketResource, EC2InstanceResource, ReadWritePermission, CloudWatchLogs
 
 class TestEC2(unittest.TestCase):
     def setUp(self):
@@ -21,11 +21,15 @@ class TestEC2(unittest.TestCase):
         # Configure our cluster
         cluster = Cluster("testClusterClass", context)
         s3Bucket = S3BucketResource(context, "testbucketname%s" % random.randrange(10000000000000))
+        logs = CloudWatchLogs(context)
         ec2Instance = EC2InstanceResource(
             context,
-            permissions=[ReadWritePermission(s3Bucket)],
+            permissions=[ReadWritePermission(s3Bucket),
+                         ReadWritePermission(logs)
+            ],
             storage=10,
             instance_type="t2.micro")
+        cluster.add_resource(logs)
         cluster.add_resource(s3Bucket)
         cluster.add_resource(ec2Instance)
 
@@ -39,7 +43,7 @@ class TestEC2(unittest.TestCase):
         time.sleep(5)
 
         # Test deployment
-        x = cluster.deploy(verbose=True)
+        x = cluster.deploy()
         while cluster.deployment_status() == "CREATE_IN_PROGRESS":
             time.sleep(5)
             print("Cluster being created...")
@@ -48,7 +52,7 @@ class TestEC2(unittest.TestCase):
         # Test deletion
         print("Cluster successfully created. Deleting.")
         cluster.delete()
-        try:        
+        try:
             while cluster.deployment_status() == "DELETE_IN_PROGRESS":
                 time.sleep(5)
                 print("Cluster being deleted...")

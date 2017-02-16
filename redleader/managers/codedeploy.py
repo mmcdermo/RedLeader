@@ -30,7 +30,8 @@ class CodeDeployManager(object):
                               ACL='authenticated-read')
         return f
 
-    def create_deployment(self, application_name, deployment_group_name, path, bucket_name, version="0"):
+    def create_deployment(self, application_name, deployment_group_name,
+                          path, bucket_name, version="0"):
         package = self.create_code_deploy_package(path)
         x = self.upload_package(bucket_name, "./%s" % package, package)
         print("Uploaded CodeDeploy package %s" % x)

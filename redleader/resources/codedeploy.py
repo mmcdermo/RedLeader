@@ -20,16 +20,21 @@ class CodeDeployEC2InstanceResource(EC2InstanceResource):
 
     def generate_sub_resources(self):
         res = super().generate_sub_resources()
-        res.append(CodeDeployServiceRoleResource.global_service_role(self._context))
+        if self._service_role is None:
+            self._service_role = CodeDeployServiceRoleResource(self._context)
+            self.add_dependency(self._service_role)
+
+        res.append(self._service_role)
         res.append(self._instance_profile)
+        self.add_dependency(self._instance_profile)
         return res
 
     def __init__(self, context, deployment_group, **kwargs):
-        self._deployment_group = deployment_group        
+        self._deployment_group = deployment_group
+        self._service_role = None
         kwargs = self.configure_kwargs(context, kwargs)
-        
+
         super().__init__(context, **kwargs)
-        self.add_dependency(CodeDeployServiceRoleResource.global_service_role(context))
         self.add_dependency(self._deployment_group)
 
     def configure_kwargs(self, context, kwargs):
@@ -54,19 +59,12 @@ class CodeDeployEC2InstanceResource(EC2InstanceResource):
             context,
             permissions=permissions,
             roles=roles,
-            services=services 
+            services=services
         )
         kwargs['instance_profile'] = self._instance_profile
         return kwargs
-        
-            
-class CodeDeployServiceRoleResource(IAMRoleResource):
-    @classmethod
-    def global_service_role(cls, context):
-        if not hasattr(cls, '_code_deploy_service_role'):
-            cls._code_deploy_service_role = CodeDeployServiceRoleResource(context)
-        return cls._code_deploy_service_role
 
+class CodeDeployServiceRoleResource(IAMRoleResource):
     def __init__(self, context, permissions=[], policies=[], policy_arns=[]):
         services = ['ec2.amazonaws.com', 'codedeploy.amazonaws.com']
         super().__init__(context,
@@ -83,25 +81,27 @@ class CodeDeployDeploymentGroupResource(Resource):
         super().__init__(context, cf_params)
         self._application_name = application_name
         self._application = None
+        self._service_role = CodeDeployServiceRoleResource(self._context)
+        self.add_dependency(self._service_role)
         self._ec2_tag_filters = [
             {"Key": "redleaderDeploymentGroup",
              "Type": "KEY_AND_VALUE",
              "Value": self._id_placeholder()
             }
         ]
-        self._service_role = CodeDeployServiceRoleResource.global_service_role(self._context)
-        self.add_dependency(self._service_role)
+
         if deployment_group_name is None:
             self._deployment_group_name = self._id_placeholder()
         else:
             self._deployment_group_name = deployment_group_name
 
     def get_ec2_tag(self):
-        return {"Key": "redleaderDeploymentGroup", "Value": self.get_id()}
-                    
+        return {"Key": "redleaderDeploymentGroup", "Value": Resource.cf_ref(self)}
+
     def generate_sub_resources(self):
         res = super().generate_sub_resources()
         res.append(self._service_role)
+
         if self._application is None:
             self._application = CodeDeployApplicationResource(
                 self._context, self._application_name)
@@ -127,7 +127,7 @@ class CodeDeployApplicationResource(Resource):
     def __init__(self, context, application_name, cf_params={}):
         super().__init__(context, cf_params)
         self._application_name = application_name
-        
+
     def _cloud_formation_template(self):
         return {
             "Type" : "AWS::CodeDeploy::Application",
