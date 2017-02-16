@@ -96,7 +96,7 @@ class CodeDeployDeploymentGroupResource(Resource):
             self._deployment_group_name = deployment_group_name
 
     def get_ec2_tag(self):
-        return {"Key": "redleaderDeploymentGroup", "Value": Resource.cf_ref(self)}
+        return {"Key": "redleaderDeploymentGroup", "Value": self.get_id()}
 
     def generate_sub_resources(self):
         res = super().generate_sub_resources()
