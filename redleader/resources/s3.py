@@ -11,13 +11,16 @@ class S3BucketResource(Resource):
                  cf_params={}
     ):
         super().__init__(context, cf_params)
-        self._bucket_name = bucket_name
+        self._bucket_name = self._sanitize(bucket_name)
+
+    def _sanitize(self, name):
+        return name.lower().replace("-", "").replace("_", "")
 
     def is_static(self):
         return True
 
     def get_id(self):
-        return "s3Bucket%s" % self._bucket_name.replace("-", "")
+        return "s3Bucket%s" % self._bucket_name
 
     def _iam_service_policy(self):
         return {"name": "s3",
@@ -42,8 +45,6 @@ class S3BucketResource(Resource):
             return False
         try:
             client.head_bucket(Bucket=self._bucket_name)
-            print("Bucket %s exists" % self._bucket_name)
             return True
         except Exception as e:
-            print("Bucket %s doesn't exist: %s" % (self._bucket_name, e))
             return False

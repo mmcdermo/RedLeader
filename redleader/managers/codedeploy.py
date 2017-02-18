@@ -1,7 +1,9 @@
 import os.path
 import os
+import time
 import tarfile
 import random
+import redleader.util as util
 
 class CodeDeployManager(object):
     def __init__(self, context):
@@ -31,12 +33,11 @@ class CodeDeployManager(object):
         return f
 
     def create_deployment(self, application_name, deployment_group_name,
-                          path, bucket_name, version="0"):
+                          path, bucket_name, version="0", blocking=True, verbose=True):
         package = self.create_code_deploy_package(path)
         x = self.upload_package(bucket_name, "./%s" % package, package)
-        print("Uploaded CodeDeploy package %s" % x)
         client = self._context.get_client('codedeploy')
-        return client.create_deployment(
+        res = client.create_deployment(
             applicationName=application_name,
             deploymentGroupName=deployment_group_name,
             revision={
@@ -47,3 +48,19 @@ class CodeDeployManager(object):
                     'bundleType': 'tgz',
                 }
             })
+        os.remove(package)
+        deploymentId = res['deploymentId']
+        if not blocking:
+            return deploymentId
+
+        i = 0
+        if verbose:
+            print("Deploying..")
+        while client.get_deployment(deploymentId=deploymentId)['deploymentInfo']['status'] in ["Created", "InProgress"]:
+            i += 1
+            if verbose:
+                util.print_progress(i)
+            time.sleep(2)
+        if verbose:
+            print("Deployment Status: %s" % client.get_deployment(deploymentId=deploymentId)['deploymentInfo']['status'])
+        return (deploymentId, client.get_deployment(deploymentId=deploymentId)['deploymentInfo']['status'])

@@ -1,18 +1,23 @@
 import json
 import time
+import sys
 import boto3
+import urllib
+import os.path
 
 import botocore.exceptions
 
 from redleader.resources import Resource
 from redleader.exceptions import MissingDependencyError, OfflineContextError
+import redleader.util as util
 
 class Cluster(object):
-    def __init__(self, cluster_class, context):
+    def __init__(self, cluster_class, context, pretty_names=True):
         super()
         self._cluster_class = cluster_class
         self._context = context
         self._resources = {}
+        self._pretty_names = pretty_names
 
     def add_resource(self, resource):
         for sub_resource in resource.generate_sub_resources():
@@ -38,21 +43,25 @@ class Cluster(object):
         """
         Add the cluster class onto the cloud formation identifier
         """
-        return ident + self._cluster_class
+        return self._cluster_class + ident
 
-    def _cluster_mod_identifiers(self, tmpl):
+    def _cluster_mod_identifiers(self, tmpl, replaceMap=None):
         """
         Modify all cloud formation identifiers so that they're unique to this cluster class
         """
+        if replaceMap is None:
+            replaceMap = {}
+            for k in self._resources:
+                replaceMap[k] = self._mod_identifier(k)
+
         if isinstance(tmpl, str):
-            if tmpl in self._resources:
-                return self._mod_identifier(tmpl)
-        if isinstance(tmpl, dict):
+            tmpl = util.multireplace(tmpl, replaceMap)
+        elif isinstance(tmpl, dict):
             for k in tmpl:
-                tmpl[k] = self._cluster_mod_identifiers(tmpl[k])
-        if isinstance(tmpl, list):
+                tmpl[k] = self._cluster_mod_identifiers(tmpl[k], replaceMap)
+        elif isinstance(tmpl, list):
             for idx in range(len(tmpl)):
-                tmpl[idx] = self._cluster_mod_identifiers(tmpl[idx])
+                tmpl[idx] = self._cluster_mod_identifiers(tmpl[idx], replaceMap)
         return tmpl
 
     def cloud_formation_template(self):
@@ -85,10 +94,14 @@ class Cluster(object):
 
     def blocking_deploy(self, verbose=False):
         self.deploy()
+        if verbose:
+            print("Cluster creation in progress")
+        i = 0
         while self.deployment_status() == "CREATE_IN_PROGRESS":
-            time.sleep(5)
+            i = (i + 1)
             if verbose:
-                print("Cluster creation in progress")
+                util.print_progress(i)
+            time.sleep(5)
         if verbose:
             print("Cluster successfully created")
         return self.deployment_status()
@@ -112,10 +125,14 @@ class Cluster(object):
     def blocking_delete(self, verbose=False):
         self.delete()
         try:
+            i = 0
+            if verbose:
+                print("Cluster deletion in progress")
             while self.deployment_status() == "DELETE_IN_PROGRESS":
-                time.sleep(5)
+                i += 1
                 if verbose:
-                    print("Cluster deletion in progress")
+                    util.print_progress(i)
+                time.sleep(5)
             if verbose:
                 print("Cluster successfully deleted")
             return self.deployment_status()
@@ -141,9 +158,35 @@ class Cluster(object):
         """
         raise NotImplementedError
 
-class OfflineContext(object):
+class Context(object):
     def __init__(self, **kwargs):
-        super()
+        self._dict = None
+        return
+
+    def get_dict(self):
+        """ Returns an english dictionary. Useful for pretty hashing"""
+        if self._dict is not None:
+            return self._dict
+        dict_path = "/tmp/redleader_dict.txt"
+        if(os.path.isfile(dict_path)):
+            with open(dict_path, 'r') as f:
+                self._dict = f.read().split("\n")
+        else:
+            print("Downloading fresh redleader dictionary")
+            url = "https://svnweb.freebsd.org/csrg/share/dict/words?view=co&content-type=text%2Fplain&revision=61569"
+            response = urllib.request.urlopen(url)
+            dict_text = response.read().decode('utf-8')
+            with open(dict_path, 'w') as f:
+                f.write(dict_text)
+            self._dict = dict_text.split("\n")
+        return self._dict
+
+class OfflineContext(Context):
+    def __init__(self, **kwargs):
+        super().__init__()
+
+    def pretty_names(self):
+        return False
 
     def get_session(self):
         raise OfflineContextError(action="get_session")
@@ -157,7 +200,7 @@ class OfflineContext(object):
     def get_client(self, service):
         raise OfflineContextError(action="get_client")
 
-class AWSContext(object):
+class AWSContext(Context):
     """
     Context manager for RedLeader, managing AWS sessions and clients.
     """
@@ -166,11 +209,15 @@ class AWSContext(object):
                  aws_profile=None,
                  aws_access_key_id=None,
                  aws_secret_access_key=None,
-                 aws_region="us-west-1"):
+                 aws_region="us-west-1",
+                 pretty_names=True
+    ):
+        super().__init__()
         self._aws_profile = aws_profile
         self._aws_access_key_id = aws_access_key_id
         self._aws_secret_access_key = aws_secret_access_key
         self._aws_region = aws_region
+        self._pretty_names = pretty_names
         self._clients = {}
         self._account_id = None
 
@@ -190,6 +237,9 @@ class AWSContext(object):
         if self._account_id is None:
             self._account_id = self.get_client('sts').get_caller_identity().get('Account')
         return self._account_id
+
+    def pretty_names(self):
+        return self._pretty_names
 
     def get_client(self, client_type):
         if client_type not in self._clients:

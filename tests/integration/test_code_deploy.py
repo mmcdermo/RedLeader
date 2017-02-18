@@ -63,7 +63,7 @@ class TestCodeDeploy(unittest.TestCase):
         for sub in template['Resources']:
             print("ID: %s" % sub)
             print(json.dumps(template['Resources'][sub], indent=4))
-
+        return
         # Delete as a preemptive cleanup step
         cluster.blocking_delete(verbose=True)
 

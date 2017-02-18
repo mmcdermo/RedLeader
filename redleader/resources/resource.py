@@ -1,6 +1,9 @@
 import hashlib
 import random
 import json
+import os
+import os.path
+import redleader.util as util
 
 class Resource(object):
     def __init__(self, context, cf_params):
@@ -49,13 +52,29 @@ class Resource(object):
         if self._user_id is not None:
             return self._user_id
         if self._generated_id is None:
-                class_name = str(self.__class__.__name__)
+                class_name = str(self.__class__.__name__).replace("Resource", "")
                 param_hash = self._param_hash()
-                if(self._multiplicity_uid is None):
+                if self._multiplicity_uid is None:
                     self._multiplicity_uid = Resource._get_multiplicity(class_name + param_hash)
                 self._generated_id = "RL%sN%sP%s" % (class_name,
                                                      self._multiplicity_uid,
                                                      param_hash)
+                if self._context.pretty_names():
+                    h = hashlib.md5()
+                    h.update(self._generated_id.encode('utf-8'))
+
+                    ints = []
+                    for x in range(2):
+                        ints.append(int(h.hexdigest()[x * 8:(x+ 1) * 8], 16))
+                    d = self._context.get_dict()
+
+                    pretty_words = ""
+                    for i in ints:
+                        word = d[i % len(d)].lower().replace("'", "")
+                        pretty_words += word[0].upper() + word[1:].lower()
+
+                    self._generated_id = "%s%s%s" % (class_name, self._multiplicity_uid, pretty_words)
+
         return self._generated_id
 
     def _id_placeholder(self):
@@ -143,8 +162,8 @@ class Resource(object):
     def replaceValues(obj, replaceMap):
         if isinstance(obj, dict):
             for key in obj:
-                if isinstance(obj[key], str) and obj[key] in replaceMap:
-                    obj[key] = replaceMap[obj[key]]
+                if isinstance(obj[key], str):
+                    obj[key] = util.multireplace(obj[key], replaceMap)
                 else:
                     obj[key] = Resource.replaceValues(obj[key], replaceMap)
         if isinstance(obj, list):
