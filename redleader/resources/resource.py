@@ -7,7 +7,7 @@ import redleader.util as util
 
 class Resource(object):
     def __init__(self, context, cf_params):
-        super()
+        super(Resource, self).__init__()
         self._context = context
         self._dependencies = []
         self._cf_params = cf_params

@@ -7,13 +7,12 @@ import os.path
 
 import botocore.exceptions
 
-from redleader.resources import Resource
-from redleader.exceptions import MissingDependencyError, OfflineContextError
-import redleader.util as util
+from .resources import Resource
+from .exceptions import MissingDependencyError, OfflineContextError
+import util
 
 class Cluster(object):
     def __init__(self, cluster_class, context, pretty_names=True):
-        super()
         self._cluster_class = cluster_class
         self._context = context
         self._resources = {}
@@ -107,11 +106,28 @@ class Cluster(object):
         return self.deployment_status()
 
 
-    def deployment_status(self):
+    def describe_stack(self):
         client = self._context.get_client('cloudformation')
-        response = client.describe_stacks(
+        return client.describe_stacks(
                 StackName=self._cluster_class
         )
+
+    def describe_resources(self):
+        client = self._context.get_client('cloudformation')
+        return client.describe_stack_resources(
+            StackName=self._cluster_class
+        )
+
+    def describe_resource(self, resource):
+        client = self._context.get_client('cloudformation')
+        return client.describe_stack_resource(
+            StackName=self._cluster_class,
+            LogicalResourceId=self._mod_identifier(resource.get_id())
+        )
+
+
+    def deployment_status(self):
+        response = self.describe_stack()
         # Possible statuses:
         # 'StackStatus': 'CREATE_IN_PROGRESS'|'CREATE_FAILED'|'CREATE_COMPLETE'|'ROLLBACK_IN_PROGRESS'|'ROLLBACK_FAILED'|'ROLLBACK_COMPLETE'|'DELETE_IN_PROGRESS'|'DELETE_FAILED'|'DELETE_COMPLETE'|'UPDATE_IN_PROGRESS'|'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS'|'UPDATE_COMPLETE'|'UPDATE_ROLLBACK_IN_PROGRESS'|'UPDATE_ROLLBACK_FAILED'|'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS'|'UPDATE_ROLLBACK_COMPLETE'|'REVIEW_IN_PROGRESS',
         return response['Stacks'][0]['StackStatus']
@@ -174,7 +190,15 @@ class Context(object):
         else:
             print("Downloading fresh redleader dictionary")
             url = "https://svnweb.freebsd.org/csrg/share/dict/words?view=co&content-type=text%2Fplain&revision=61569"
-            response = urllib.request.urlopen(url)
+            openfun = None
+            if hasattr(urllib, "request"):
+                # Python 3.x
+                openfun = urllib.request.urlopen
+            else:
+                # Python 2.x
+                openfun = urllib.urlopen
+
+            response = openfun(url)
             dict_text = response.read().decode('utf-8')
             with open(dict_path, 'w') as f:
                 f.write(dict_text)
@@ -212,7 +236,7 @@ class AWSContext(Context):
                  aws_region="us-west-1",
                  pretty_names=True
     ):
-        super().__init__()
+        super(AWSContext, self).__init__()
         self._aws_profile = aws_profile
         self._aws_access_key_id = aws_access_key_id
         self._aws_secret_access_key = aws_secret_access_key

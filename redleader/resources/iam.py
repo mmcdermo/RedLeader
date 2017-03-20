@@ -14,7 +14,7 @@ class IAMInstanceProfileResource(Resource):
     """
 
     def __init__(self, context, permissions=[], roles=[], services=['ec2.amazonaws.com']):
-        super().__init__(context, {})
+        super(IAMInstanceProfileResource, self).__init__(context, {})
         self._permissions = permissions
         self._generated_role = None
         self._roles = roles
@@ -52,7 +52,7 @@ class IAMRoleResource(Resource):
     `policies` should be a list of IAMPolicyResource objects
     """
     def __init__(self, context, permissions, services=[], policies=[], policy_arns=[]):
-        super().__init__(context, {})
+        super(IAMRoleResource, self).__init__(context, {})
         self._permissions = permissions
         self._services = services
         self._policies = policies
@@ -87,13 +87,22 @@ class IAMRoleResource(Resource):
             "Properties": {
                 "AssumeRolePolicyDocument":
                    IAMRoleResource.assumeRolePolicyDocument(self._services),
-                "ManagedPolicyArns": [Resource.cf_ref(x) for x in self._policies] +\
+                "ManagedPolicyArns": [Resource.cf_ref(x) for x in self._unique_policies()] +\
                   self._policy_arns,
                 "Path": "/redleader/",
                 "RoleName": self._id_placeholder()
             }
         }
         return "IAM Role template"
+
+    def _unique_policies(self):
+        keys = {}
+        unique = []
+        for policy in self._policies:
+            if policy.get_id() not in keys:
+                unique.append(policy)
+                keys[policy.get_id()] = True
+        return unique
 
     def _generate_sub_resources(self):
         """
@@ -103,13 +112,15 @@ class IAMRoleResource(Resource):
             return []
 
         self._generated_policy = IAMPolicyResource(self._context, self._permissions)
-        self.add_dependency(self._generated_policy)
         self._policies.append(self._generated_policy)
+        #if len(self._policies) > 0 and self._generated_policy.get_id() == self._policies[0].get_id():
+        #    return []
+        self.add_dependency(self._generated_policy)
         return [self._generated_policy]
 
 class IAMPolicyResource(Resource):
     def __init__(self, context, permissions):
-        super().__init__(context, {})
+        super(IAMPolicyResource, self).__init__(context, {})
         self._permissions = permissions
 
     def _cloud_formation_template(self):
@@ -122,7 +133,6 @@ class IAMPolicyResource(Resource):
                     self._context, self._permissions)
             }
         }
-        return "IAM Policy template"
 
 def generate_policy_document(context, permissions):
     policy_statements = []

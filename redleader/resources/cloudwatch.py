@@ -11,7 +11,7 @@ class CloudWatchLogs(Resource):
                  context,
                  cf_params={}
     ):
-        super().__init__(context, cf_params)
+        super(CloudWatchLogs, self).__init__(context, cf_params)
 
     def is_static(self):
         return True

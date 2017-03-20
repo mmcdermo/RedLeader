@@ -4,12 +4,12 @@ class ResourcePermission(object):
 
 class WritePermission(ResourcePermission):
     def __init__(self, resource):
-        super().__init__(resource)
+        super(WritePermission, self).__init__(resource)
 
 class ReadPermission(ResourcePermission):
     def __init__(self, resource):
-        super().__init__(resource)
+        super(ReadPermission, self).__init__(resource)
 
 class ReadWritePermission(ResourcePermission):
     def __init__(self, resource):
-        super().__init__(resource)
+        super(ReadWritePermission, self).__init__(resource)

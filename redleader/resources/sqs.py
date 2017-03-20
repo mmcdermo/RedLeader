@@ -10,7 +10,7 @@ class SQSQueueResource(Resource):
                  queue_name,
                  cf_params={}
     ):
-        super().__init__(context, cf_params)
+        super(SQSQueueResource, self).__init__(context, cf_params)
         self._queue_name = queue_name
 
     def is_static(self):

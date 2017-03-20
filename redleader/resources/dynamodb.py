@@ -1,10 +1,10 @@
-from redleader.resources import Resource 
+from redleader.resources import Resource
 
 class DynamoDBTableResource(Resource):
     """
     Resource modeling a DynamoDB Table.
 
-    If attribute_definitions and key_schema are not provided, 
+    If attribute_definitions and key_schema are not provided,
     the resource will not generate a cloud formation template
     and will be useful only for generating IAM policies/roles/profiles.
 
@@ -29,7 +29,7 @@ class DynamoDBTableResource(Resource):
                  write_units=1,
                  cf_params={}
     ):
-        super().__init__(context, cf_params)
+        super(DynamoDBTableResource, self).__init__(context, cf_params)
         self._attribute_definitions = attribute_definitions
         self._key_schema = key_schema
         self._read_units = read_units
@@ -44,7 +44,10 @@ class DynamoDBTableResource(Resource):
 
     def _iam_service_policy(self):
         return {"name": "dynamodb",
-                "params": {"table_name": self._table_name}}
+                "params": {
+                    "safe_table_name": self.get_id(),
+                    "table_name": self._table_name
+                }}
 
     def _cloud_formation_template(self):
         """
