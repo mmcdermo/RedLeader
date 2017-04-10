@@ -3,5 +3,10 @@
       "Effect": "Allow",
       "Action": "*",
       "Resource": "arn:aws:sqs:*:{account_id}:{queue_name}*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["sqs:GetQueueAttributes", "sqs:GetQueueUrl", "sqs:ListDeadLetterSourceQueues", "sqs:ListQueues"],
+      "Resource": "arn:aws:sqs:*:{account_id}:*"
     }
 ]

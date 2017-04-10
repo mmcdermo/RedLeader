@@ -59,6 +59,7 @@ class Resource(object):
                 self._generated_id = "RL%sN%sP%s" % (class_name,
                                                      self._multiplicity_uid,
                                                      param_hash)
+                print(self.__class__.__name__)
                 if self._context.pretty_names():
                     h = hashlib.md5()
                     h.update(self._generated_id.encode('utf-8'))

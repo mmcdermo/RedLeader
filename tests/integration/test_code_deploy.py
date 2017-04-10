@@ -10,29 +10,16 @@ import redleader
 from redleader.cluster import Cluster, OfflineContext, AWSContext
 from redleader.resources import S3BucketResource, SQSQueueResource, CodeDeployEC2InstanceResource, CodeDeployDeploymentGroupResource, ReadWritePermission
 from redleader.managers import CodeDeployManager
-
+from util import cleanup_buckets
 
 class TestCodeDeploy(unittest.TestCase):
     def setUp(self):
         self._context = AWSContext(aws_profile="testing")
-        self.cleanup_buckets(self._context.get_client('s3'))
+        cleanup_buckets(self._context.get_client('s3'), 'testbucketname')
 
     def tearDown(self):
-        #self.cleanup_buckets(self._context.get_client('s3'))
+        cleanup_buckets(self._context.get_client('s3'), 'testbucketname')
         pass
-
-    @staticmethod
-    def cleanup_buckets(client):
-        for bucket in client.list_buckets()['Buckets']:
-            if 'testbucket' in bucket['Name']:
-                print("Deleting test bucket: %s" % bucket['Name'])
-                listed = client.list_objects_v2(Bucket=bucket['Name'])
-                if 'Contents' in listed:
-                    objs = listed['Contents']
-                    response = client.delete_objects(
-                        Bucket=bucket['Name'],
-                        Delete={'Objects': [{"Key": x["Key"]} for x in objs]})
-                client.delete_bucket(Bucket=bucket['Name'])
 
     def test_code_deploy_cluster(self):
         context = self._context

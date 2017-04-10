@@ -7,3 +7,4 @@ from .cloudwatch import *
 from .codedeploy import *
 from .iam import *
 from .permissions import *
+from .elasticbeanstalk import *

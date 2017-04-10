@@ -1,6 +1,9 @@
 import re
 import sys
 
+def sanitize_name(string):
+    return re.sub('[^0-9a-zA-Z]+', '', string)
+
 def multireplace(string, replacements):
     substrs = sorted(replacements, key=len, reverse=True)
     regexp = re.compile('|'.join(map(re.escape, substrs)))

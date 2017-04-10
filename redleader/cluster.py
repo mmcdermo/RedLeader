@@ -9,7 +9,7 @@ import botocore.exceptions
 
 from .resources import Resource
 from .exceptions import MissingDependencyError, OfflineContextError
-import util
+import redleader.util as util
 
 class Cluster(object):
     def __init__(self, cluster_class, context, pretty_names=True):
@@ -226,7 +226,7 @@ class OfflineContext(Context):
 
 class AWSContext(Context):
     """
-    Context manager for RedLeader, managing AWS sessions and clients.
+    AWS Context for RedLeader, managing AWS sessions and clients.
     """
 
     def __init__(self,

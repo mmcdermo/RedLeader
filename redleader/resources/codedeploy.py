@@ -3,7 +3,7 @@ from .ec2 import EC2InstanceResource
 from .iam import IAMRoleResource, IAMInstanceProfileResource
 import pkg_resources
 
-class CodeDeployEC2InstanceResource(EC2InstanceResource):
+class ElasticBeanstalkEnvironment(EC2InstanceResource):
     """
     Creates an EC2 server resource with the code deploy agent running.
     Takes the same keyword parameters as EC2InstanceResource.
