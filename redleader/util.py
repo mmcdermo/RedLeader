@@ -1,6 +1,9 @@
 import re
 import sys
 
+def sanitize(string):
+    return re.sub('[^0-9a-zA-Z]+', '', string)
+
 def sanitize_name(string):
     return re.sub('[^0-9a-zA-Z]+', '', string)
 

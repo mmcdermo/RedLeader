@@ -8,7 +8,7 @@ install_requires = [
 
 setup(
     name='RedLeader',
-    version='0.2.0',
+    version='0.2.1',
     description='An automated EC2 & ECS deployment platform',
     author='Morgan McDermott',
     author_email='morganmcdermott@gmail.com',

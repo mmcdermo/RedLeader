@@ -97,7 +97,7 @@ class Cluster(object):
             print("Cluster creation in progress")
         i = 0
         while self.deployment_status() == "CREATE_IN_PROGRESS":
-            i = (i + 1)
+            i += 1
             if verbose:
                 util.print_progress(i)
             time.sleep(5)
@@ -105,6 +105,27 @@ class Cluster(object):
             print("Cluster successfully created")
         return self.deployment_status()
 
+    def update(self):
+        client = self._context.get_client('cloudformation')
+        return client.update_stack(
+            StackName=self._cluster_class,
+            TemplateBody=json.dumps(self.cloud_formation_template()),
+            Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM']
+        )
+
+    def blocking_update(self, verbose=False):
+        self.update()
+        if verbose:
+            print("Cluster update in progress")
+        i = 0
+        while self.deployment_status() == "UPDATE_IN_PROGRESS":
+            i += 1
+            if verbose:
+                util.print_progress(i)
+            time.sleep(5)
+        if verbose:
+            print("Cluster update finished with status %s" % self.deployment_status())
+        return self.deployment_status()
 
     def describe_stack(self):
         client = self._context.get_client('cloudformation')

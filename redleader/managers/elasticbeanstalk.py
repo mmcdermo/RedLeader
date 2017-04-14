@@ -5,6 +5,7 @@ import tarfile
 import random
 from zipfile import ZipFile
 import redleader.util as util
+import botocore
 
 class ElasticBeanstalkManager(object):
     def __init__(self, context):
@@ -13,6 +14,14 @@ class ElasticBeanstalkManager(object):
     def upload_package(self, bucket_name, path, name):
         print("Uploading %s to bucket %s/%s" % (path, bucket_name, name))
         client = self._context.get_client('s3')
+        try:
+            client.create_bucket(Bucket=bucket_name,
+                                 CreateBucketConfiguration = {
+                                     "LocationConstraint": self._context._aws_region
+                                 })
+        except botocore.exceptions.ClientError:
+            print("Bucket %s already exists" % bucket_name)
+
         f = client.upload_file(path, bucket_name, name)
         # TODO. Configure bucket permissions so that an
         #    IAM policy with s3::GetObject is sufficient.

@@ -8,6 +8,7 @@ solution_stacks = {
     "python_2_7": "64bit Amazon Linux 2016.09 v2.3.3 running Python 2.7",
     "go_1_6_6": "64bit Amazon Linux 2016.09 v2.3.3 running Go 1.6",
     "docker": "64bit Amazon Linux 2016.09 v2.5.2 running Docker 1.12.6",
+    "docker_go": "64bit Debian jessie v2.5.2 running Go 1.4 (Preconfigured - Docker)", # golang:1.4.2-onbuild
     "docker_multi": "64bit Amazon Linux 2016.09 v2.5.2 running Multi-container Docker 1.12.6 (Generic)"
 }
 
@@ -133,12 +134,13 @@ class ElasticBeanstalkAppResource(Resource):
 
 class ElasticBeanstalkInstanceProfile(IAMInstanceProfileResource):
     def __init__(self, context, permission_resources):
-        services = ["ec2.amazonaws.com", "elasticbeanstalk.amazonaws.com"]
+        services = ["elasticbeanstalk.amazonaws.com", "ec2.amazonaws.com"]
         policy_arn = "arn:aws:iam::aws:policy/AWSElasticBeanstalkFullAccess"
+        eh_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth"
         self._ebs_role = IAMRoleResource(context,
-                                   permission_resources,
-                                   services=services,
-                                   policy_arns=[policy_arn])
+                                         permission_resources,
+                                         services=services,
+                                         policy_arns=[policy_arn, eh_policy_arn])
         super().__init__(
             context,
             permissions=permission_resources,
@@ -208,10 +210,18 @@ class ElasticBeanstalkConfigTemplateResource(Resource):
             return [self._generated_profile]
         return []
 
+    def generate_options(self):
+        service_role_option = {
+            "Namespace": "aws:elasticbeanstalk:environment",
+            "OptionName": "ServiceRole",
+            "Value": Resource.cf_ref(self._generated_profile._ebs_role)
+        }
+        return [service_role_option]
+
     @staticmethod
     def format_options(options):
         """
-        Format options for cloud formation
+        Format options for cloud formation.
         """
         formatted = []
         for namespace in options:
@@ -238,7 +248,7 @@ class ElasticBeanstalkConfigTemplateResource(Resource):
             "Properties": {
                 "ApplicationName": Resource.cf_ref(self._application),
                 "Description": self._description,
-                "OptionSettings": self.format_options(self._options),
+                "OptionSettings": self.format_options(self._options) + self.generate_options(),
                 "SolutionStackName": self._solution_stack_name
             }
         }
