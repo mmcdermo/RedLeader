@@ -1,8 +1,10 @@
-from redleader.resources import Resource
+import json
+import hashlib
 import random
 import os.path
 import pkg_resources
-import json
+
+from redleader.resources import Resource
 
 class IAMInstanceProfileResource(Resource):
     """
@@ -28,6 +30,8 @@ class IAMInstanceProfileResource(Resource):
                 self.add_dependency(role)
 
     def _generate_sub_resources(self):
+        if len(self._roles) > 0:
+            return []
         self._generated_role = IAMRoleResource(self._context,
                                                self._permissions,
                                                services=self._services,
@@ -41,7 +45,6 @@ class IAMInstanceProfileResource(Resource):
         return {
             "Type": "AWS::IAM::InstanceProfile",
             "Properties": {
-                "Path": "/redleader/",
                 "Roles": [Resource.cf_ref(x) for x in self._roles]
             }
         }
@@ -51,13 +54,15 @@ class IAMRoleResource(Resource):
     Create an IAM role with access to the given resources.
     `policies` should be a list of IAMPolicyResource objects
     """
-    def __init__(self, context, permissions, services=[], policies=[], policy_arns=[]):
+    def __init__(self, context, permissions, services=[], policies=[],
+                 policy_arns=[], assume_role_condition=None):
         super(IAMRoleResource, self).__init__(context, {})
         self._permissions = permissions
         self._services = services
         self._policies = policies
         self._generated_policy = None
         self._policy_arns = policy_arns
+        self._assume_role_condition = assume_role_condition
 
         for permission in self._permissions:
             self.add_dependency(permission.resource)
@@ -65,35 +70,40 @@ class IAMRoleResource(Resource):
         for policy in self._policies:
             self.add_dependency(policy)
 
-    @staticmethod
-    def assumeRolePolicyDocument(services):
-        return {
+    def assumeRolePolicyDocument(self, services):
+        obj = {
             "Version" : "2012-10-17",
             "Statement": [
                 {
                     "Sid": "",
                     "Effect": "Allow",
                     "Principal": {
-                        "Service": services
+                        "Service": sorted(services)
                     },
                     "Action": "sts:AssumeRole"
                 }
             ]
         }
+        if self._assume_role_condition is not None:
+            obj["Statement"][0]["Condition"] = self._assume_role_condition
+        return obj
+
+    @staticmethod
+    def refkey(a):
+        if isinstance(a, str):
+            return a
+        return a['Ref']
 
     def _cloud_formation_template(self):
         return {
             "Type": "AWS::IAM::Role",
             "Properties": {
                 "AssumeRolePolicyDocument":
-                   IAMRoleResource.assumeRolePolicyDocument(self._services),
-                "ManagedPolicyArns": [Resource.cf_ref(x) for x in self._unique_policies()] +\
-                  self._policy_arns,
-                "Path": "/redleader/",
+                   self.assumeRolePolicyDocument(self._services),
+                "ManagedPolicyArns": sorted([Resource.cf_ref(x) for x in self._unique_policies()], key=IAMRoleResource.refkey) + self._policy_arns,
                 "RoleName": self._id_placeholder()
             }
         }
-        return "IAM Role template"
 
     def _unique_policies(self):
         keys = {}
@@ -124,24 +134,31 @@ class IAMPolicyResource(Resource):
         self._permissions = permissions
 
     def _cloud_formation_template(self):
-        return {
+        obj = {
             "Type" : "AWS::IAM::ManagedPolicy",
             "Properties" : {
                 "Description" : self._id_placeholder(),
-                "Path": "/redleader/",
                 "PolicyDocument": generate_policy_document(
                     self._context, self._permissions)
             }
         }
+        return obj
+
+def dict_hash(d):
+    h = hashlib.md5()
+    extracted_json = json.dumps(d, sort_keys=True)
+    h.update(str(extracted_json).encode('utf-8'))
+    return str(h.hexdigest())
 
 def generate_policy_document(context, permissions):
     policy_statements = []
     for permission in permissions:
         resource = permission.resource
         # TODO: Differentiate between read, write, readwrite
-        for service in resource.iam_service_policies():
+        for service in sorted(resource.iam_service_policies(), key=lambda x: x['name']):
             policy = create_iam_policy(context, service)
             policy_statements += policy
+    policy_statements = sorted(policy_statements, key=dict_hash)
     return {
         "Version" : "2012-10-17",
         "Statement": policy_statements

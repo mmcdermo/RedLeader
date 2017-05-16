@@ -1,5 +1,6 @@
 from redleader.resources import Resource
 import redleader.exceptions as exceptions
+import botocore
 
 class S3BucketResource(Resource):
     """
@@ -46,5 +47,10 @@ class S3BucketResource(Resource):
         try:
             client.head_bucket(Bucket=self._bucket_name)
             return True
-        except Exception as e:
-            return False
+        except botocore.exceptions.ClientError as e:
+            if "Forbidden" in str(e):
+                return True
+            if "Not Found" in str(e):
+                return False
+            else:
+                raise e

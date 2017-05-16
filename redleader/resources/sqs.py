@@ -8,13 +8,19 @@ class SQSQueueResource(Resource):
     def __init__(self,
                  context,
                  queue_name,
-                 cf_params={}
+                 dead_letter_queue=None,
+                 dead_letter_queue_retries=3,
+                 is_static=True, # Retain between CF deployments?
+                 cf_params={},
     ):
         super(SQSQueueResource, self).__init__(context, cf_params)
         self._queue_name = queue_name
+        self._dead_letter_queue = dead_letter_queue
+        self._dead_letter_queue_retries = dead_letter_queue_retries
+        self._is_static = is_static
 
     def is_static(self):
-        return True
+        return self._is_static
 
     def get_id(self):
         return "s3Queue%s" % self._queue_name.replace("-", "").replace("_", "")
@@ -28,7 +34,7 @@ class SQSQueueResource(Resource):
         """
         Get the cloud formation template for this resource
         """
-        return {
+        obj = {
             "Type" : "AWS::SQS::Queue",
             "Properties" : {
                 #"DelaySeconds": Integer,
@@ -40,6 +46,12 @@ class SQSQueueResource(Resource):
                 # "VisibilityTimeout": Integer
               }
         }
+        if self._dead_letter_queue != None:
+            obj["Properties"]["RedrivePolicy"] = {
+                  "deadLetterTargetArn" : Resource.cf_attr(self._dead_letter_queue, 'Arn'),
+                  "maxReceiveCount" : self._dead_letter_queue_retries
+            }
+        return obj
 
     def resource_exists(self):
         try:

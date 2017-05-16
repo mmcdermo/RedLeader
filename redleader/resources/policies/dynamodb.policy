@@ -1,6 +1,5 @@
 [
 	{
-    	    "Sid": "RedLeaderDynamoDBAllowAll{safe_table_name}",
 	    "Effect": "Allow",
     	    "Action": [
 		"dynamodb:*"

@@ -44,7 +44,7 @@ class ElasticBeanstalkEnvResource(Resource):
         self.add_dependency(configuration_template)
 
     def get_id(self):
-        return "elasticBeanstalkEnv%s%s" %\
+        return "ebEnv%s%s" %\
             (util.sanitize_name(self._application._name),
              util.sanitize_name(self._description[:10]))
 
@@ -83,7 +83,7 @@ class ElasticBeanstalkAppVersionResource(Resource):
         self.add_dependency(application)
 
     def get_id(self):
-        return "elasticBeanstalkAppVersion%s%s" % \
+        return "ebAppVer%s%s" % \
             (util.sanitize_name(self._application._name),
              util.sanitize_name(self._description[:10]))
 
@@ -117,7 +117,7 @@ class ElasticBeanstalkAppResource(Resource):
         self._name = name
 
     def get_id(self):
-        return "elasticBeanstalkApp%s" % \
+        return "ebApp%s" % \
             util.sanitize_name(self._name)
 
     def _cloud_formation_template(self):
@@ -132,15 +132,35 @@ class ElasticBeanstalkAppResource(Resource):
         }
 
 
-class ElasticBeanstalkInstanceProfile(IAMInstanceProfileResource):
+class ElasticBeanstalkServiceRole(IAMRoleResource):
     def __init__(self, context, permission_resources):
         services = ["elasticbeanstalk.amazonaws.com", "ec2.amazonaws.com"]
         policy_arn = "arn:aws:iam::aws:policy/AWSElasticBeanstalkFullAccess"
         eh_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth"
+        condition =  { "StringEquals": { "sts:ExternalId": "elasticbeanstalk" } }
+        super().__init__(context,
+                         permission_resources,
+                         services=services,
+                         policy_arns=[policy_arn, eh_policy_arn]
+        )
+
+    def get_id(self):
+        return "ebServRole"
+
+class ElasticBeanstalkInstanceProfile(IAMInstanceProfileResource):
+    def __init__(self, context, permission_resources):
+        services = ["ec2.amazonaws.com"]
+        arns = [
+            "arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier",
+            "arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier",
+            "arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker",
+            "arn:aws:iam::aws:policy/AWSElasticBeanstalkFullAccess"
+            ]
         self._ebs_role = IAMRoleResource(context,
                                          permission_resources,
                                          services=services,
-                                         policy_arns=[policy_arn, eh_policy_arn])
+                                         policy_arns=arns
+        )
         super().__init__(
             context,
             permissions=permission_resources,
@@ -149,8 +169,11 @@ class ElasticBeanstalkInstanceProfile(IAMInstanceProfileResource):
         )
         self.add_dependency(self._ebs_role)
 
-    def generate_sub_resources(self):
-        return [self._ebs_role]
+    def get_id(self):
+        return "ebInstProfile"
+
+    def _generate_sub_resources(self):
+        return super()._generate_sub_resources() + [self._ebs_role]
 
 class ElasticBeanstalkConfigTemplateResource(Resource):
     """
@@ -200,23 +223,35 @@ class ElasticBeanstalkConfigTemplateResource(Resource):
         if instance_profile is not None:
             self.add_dependency(self._instance_profile)
 
+        self._service_role = ElasticBeanstalkServiceRole(
+            self._context,
+            self._permission_resources
+        )
+        self.add_dependency(self._service_role)
+
     def generate_sub_resources(self):
+        resources = [self._service_role]
         if self._instance_profile is None:
             if self._generated_profile is None:
                 self._generated_profile = ElasticBeanstalkInstanceProfile(
                     self._context,
                     self._permission_resources)
                 self.add_dependency(self._generated_profile)
-            return [self._generated_profile]
-        return []
+            resources.append(self._generated_profile)
+        return resources
 
     def generate_options(self):
         service_role_option = {
             "Namespace": "aws:elasticbeanstalk:environment",
             "OptionName": "ServiceRole",
-            "Value": Resource.cf_ref(self._generated_profile._ebs_role)
+            "Value": Resource.cf_ref(self._service_role)
         }
-        return [service_role_option]
+        instance_profile_option = {
+            "Namespace": "aws:autoscaling:launchconfiguration",
+            "OptionName": "IamInstanceProfile",
+            "Value": Resource.cf_ref(self._generated_profile)
+        }
+        return [service_role_option, instance_profile_option]
 
     @staticmethod
     def format_options(options):
@@ -235,7 +270,7 @@ class ElasticBeanstalkConfigTemplateResource(Resource):
         return formatted
 
     def get_id(self):
-        return "elasticBeanstalkConfigTemplate%s%s" % \
+        return "ebConfTempl%s%s" % \
             (util.sanitize_name(self._application._name),
              util.sanitize_name(self._description[:10]))
 

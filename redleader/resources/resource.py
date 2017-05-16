@@ -40,7 +40,7 @@ class Resource(object):
         """
         Each resource needs a reproducible UID that represents its state and multiplicty
         State: If a key parameter to a resource changes, it's a different resource
-        Multiplicity: We need to be able to differentiate identical resources. e.g) t2.micro Instance #3
+        Multiplicity: We need to be able to differentiate identical resources. e.g) t2.micro Instance #2 vs #3
         Solution:
 	  * Utilize _get_multiplicity to track # of identical resources produced
 	  * Utilize _idempotent_params() to get a subset of a resource's
@@ -59,7 +59,6 @@ class Resource(object):
                 self._generated_id = "RL%sN%sP%s" % (class_name,
                                                      self._multiplicity_uid,
                                                      param_hash)
-                print(self.__class__.__name__)
                 if self._context.pretty_names():
                     h = hashlib.md5()
                     h.update(self._generated_id.encode('utf-8'))
@@ -199,6 +198,7 @@ class Resource(object):
         for dependency in self.get_dependencies():
             if(not dependency.is_static() or not dependency.resource_exists()):
                 cf_template["DependsOn"].append(dependency.get_id())
+        cf_template["DependsOn"] = sorted(cf_template["DependsOn"])
 
         if self.is_static():
             # Don't delete static resources on cluster deletion

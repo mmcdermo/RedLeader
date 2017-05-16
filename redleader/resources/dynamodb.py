@@ -1,4 +1,5 @@
 from redleader.resources import Resource
+import botocore
 
 class DynamoDBTableResource(Resource):
     """
@@ -84,6 +85,8 @@ class DynamoDBTableResource(Resource):
         try:
             desc = client.describe_table(TableName=self._table_name)
             return True
-        except Exception as e:
-            print("Table %s does not exist: %s" % (self._table_name, e))
-            return False
+        except botocore.exceptions.ClientError as e:
+            if "not found" in str(e):
+                return False
+            else:
+                raise e

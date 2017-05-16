@@ -4,7 +4,21 @@
             "logs:CreateLogStream",
             "logs:PutLogEvents",
 	    "logs:CreateLogGroup",
-	    "logs:DescribeLogStreams"
+	    "logs:DescribeLogStreams",
+	    "cloudwatch:GetMetricData",
+	    "cloudwatch:GetMetricStatistics",
+	    "logs:CreateLogGroup",
+	    "logs:CreateLogStream",
+	    "logs:DescribeLogGroups",
+	    "logs:DescribeLogStreams",
+	    "logs:DescribeMetricFilters",
+	    "logs:DescribeSubscriptionFilters",
+	    "logs:FilterLogEvents",
+	    "logs:GetLogEvents",
+	    "logs:PutMetricFilter",
+	    "logs:PutRetentionPolicy",
+	    "logs:PutSubscriptionFilter",
+	    "logs:TestMetricFilter"
 	],
 	"Effect": "Allow",
 	"Resource": "*"

@@ -12,11 +12,17 @@ from .exceptions import MissingDependencyError, OfflineContextError
 import redleader.util as util
 
 class Cluster(object):
-    def __init__(self, cluster_class, context, pretty_names=True):
+    def __init__(self,
+                 cluster_class,
+                 context,
+                 pretty_names=True,
+                 auto_add_resources=True
+    ):
         self._cluster_class = cluster_class
         self._context = context
         self._resources = {}
         self._pretty_names = pretty_names
+        self._auto_add_resources = auto_add_resources
 
     def add_resource(self, resource):
         for sub_resource in resource.generate_sub_resources():
@@ -24,19 +30,22 @@ class Cluster(object):
         self._resources[resource.get_id()] = resource
 
     def validate(self):
-        for resource_id in self._resources:
+        for resource_id in list(self._resources.keys()):
             resource = self._resources[resource_id]
             for dependency in resource.get_dependencies():
                 x = dependency.get_id()
                 if x not in self._resources:
-                    print("Missing dependency")
-                    print(resource.get_id())
-                    print(x)
-                    print(self._resources.keys())
-                    raise MissingDependencyError(
-                        source_resource= resource.get_id(),
-                        missing_resource= dependency.get_id()
-                    )
+                    print("Dependency %s missing from cluster." % resource.get_id())
+                    if(self._auto_add_resources):
+                        print("\tAutomatically adding resource to cluster.")
+                        self.add_resource(dependency)
+                    else:
+                        print(x)
+                        print(self._resources.keys())
+                        raise MissingDependencyError(
+                            source_resource= resource.get_id(),
+                            missing_resource= dependency.get_id()
+                        )
 
     def _mod_identifier(self, ident):
         """
@@ -73,6 +82,8 @@ class Cluster(object):
             if template is not None:
                 templates[self._mod_identifier(resource_id)] = \
                     self._cluster_mod_identifiers(template)
+        with open("/tmp/redleader_cloudformation.json", 'w') as f:
+            f.write(json.dumps(templates, indent=4, sort_keys=True))
         return {
                "AWSTemplateFormatVersion": "2010-09-09",
                "Resources": templates
@@ -267,6 +278,7 @@ class AWSContext(Context):
         self._account_id = None
 
         try:
+            print("Creating Redleader AWS Session with profile %s" % self._aws_profile)
             self._session = boto3.Session(profile_name=self._aws_profile,
                                           region_name=self._aws_region)
         except botocore.exceptions.NoCredentialsError:
