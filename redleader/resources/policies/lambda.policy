@@ -1,0 +1,10 @@
+[
+	{
+    	    "Sid": "RedLeaderLambdaAllowAll{safe_function_name}",
+	    "Effect": "Allow",
+    	    "Action": [
+		"lambda:*"
+	    ],
+	    "Resource": "*"
+	}
+]
