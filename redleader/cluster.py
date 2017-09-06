@@ -298,7 +298,14 @@ class AWSContext(Context):
     def pretty_names(self):
         return self._pretty_names
 
-    def get_client(self, client_type):
+    def get_client(self, client_type, region_name=None):
+        kwargs = {}
+        if region_name is not None:
+            kwargs["region_name"] = region_name
+            # Always return a new client for custom region requests
+            # TODO: Cache clients by region
+            return self._session.client(client_type, **kwargs)
+
         if client_type not in self._clients:
-            self._clients[client_type] = self._session.client(client_type)
+            self._clients[client_type] = self._session.client(client_type, **kwargs)
         return self._clients[client_type]

@@ -28,7 +28,8 @@ class DynamoDBTableResource(Resource):
                  key_schema=None,
                  read_units=1,
                  write_units=1,
-                 cf_params={}
+                 cf_params={},
+                 aws_region=None
     ):
         super(DynamoDBTableResource, self).__init__(context, cf_params)
         self._attribute_definitions = attribute_definitions
@@ -36,6 +37,7 @@ class DynamoDBTableResource(Resource):
         self._read_units = read_units
         self._write_units = write_units
         self._table_name = table_name
+        self._aws_region = aws_region
 
     def is_static(self):
         return True
@@ -44,11 +46,18 @@ class DynamoDBTableResource(Resource):
         return "DynamoDBTable%s" % self._table_name.replace("-", "").replace("_", "")
 
     def _iam_service_policy(self):
-        return {"name": "dynamodb",
-                "params": {
-                    "safe_table_name": self.get_id(),
-                    "table_name": self._table_name
-                }}
+        params = {
+            "safe_table_name": self.get_id(),
+            "table_name": self._table_name
+        }
+
+        if self._aws_region != None:
+            params["aws_region"] = self._aws_region
+
+        return {
+            "name": "dynamodb",
+            "params": params
+        }
 
     def _cloud_formation_template(self):
         """
@@ -81,7 +90,10 @@ class DynamoDBTableResource(Resource):
         }
 
     def resource_exists(self):
-        client = self._context.get_client("dynamodb")
+        kwargs = {}
+        if(self._aws_region != None):
+            kwargs["region_name"] = self._aws_region
+        client = self._context.get_client("dynamodb", **kwargs)
         try:
             desc = client.describe_table(TableName=self._table_name)
             return True
