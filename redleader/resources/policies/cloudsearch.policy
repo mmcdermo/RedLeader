@@ -1,0 +1,7 @@
+[
+    {
+      "Effect": "Allow",
+      "Action": ["cloudsearch:*"],
+      "Resource": "arn:aws:dynamodb:{aws_region}:{account_id}:domain/{domain_name}"
+    }
+]
