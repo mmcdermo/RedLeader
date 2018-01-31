@@ -9,7 +9,7 @@ class CloudSearch(Resource):
     """
     def __init__(self,
                  context,
-                 domain_name,
+                 domain_name="",
                  cf_params={}
     ):
         super(CloudSearch, self).__init__(context, cf_params)
